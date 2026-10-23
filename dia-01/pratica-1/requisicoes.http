@@ -1,0 +1,12 @@
+# Requisições para testar a solução. Precisa da extensão REST Client no VS Code.
+# Suba o servidor com "npm run start:dev" e clique em "Send Request" acima de cada requisição.
+
+@url = http://localhost:3000
+
+### 1. Rota gerada pelo nest new
+# Esperado: 200, "Hello World!"
+GET {{url}}/
+
+### 2. Rota criada na prática
+# Esperado: 200, [{"id":1,"nome":"Luis","email":"luis@teste.br"}]
+GET {{url}}/usuarios

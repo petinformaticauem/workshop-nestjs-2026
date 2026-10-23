@@ -1,0 +1,76 @@
+# Requisições para testar a solução. Precisa da extensão REST Client no VS Code.
+# Suba o servidor com "npm run start:dev" e clique em "Send Request" acima de cada requisição.
+# Os resultados esperados partem do servidor recém-iniciado, com os 5 usuários
+# da lista. Rode as requisições na ordem. Para recomeçar, reinicie o servidor.
+
+@url = http://localhost:3000
+
+### 1. Listar todos
+# Esperado: 200, os 5 usuários
+GET {{url}}/usuarios
+
+### 2. Filtrar por nome
+# Esperado: 200, só Lucas Fratus
+GET {{url}}/usuarios?nome=Lucas
+
+### 3. O filtro diferencia maiúsculas de minúsculas
+# Esperado: 200, []
+GET {{url}}/usuarios?nome=lucas
+
+### 4. Buscar por id
+# Esperado: 200, Lucas Fratus
+GET {{url}}/usuarios/3
+
+### 5. Buscar id inexistente
+# Esperado: 200, sem corpo (no Dia 3 vira 404)
+GET {{url}}/usuarios/99
+
+### 6. Criar
+# Esperado: 201, Vitor com id 6
+POST {{url}}/usuarios
+Content-Type: application/json
+
+{
+  "nome": "Vitor",
+  "email": "vitor@uem.br"
+}
+
+### 7. Atualizar só o e-mail
+# Esperado: 200, Ana Paula com o e-mail novo e o nome mantido
+PATCH {{url}}/usuarios/1
+Content-Type: application/json
+
+{
+  "email": "anapaula@uem.br"
+}
+
+### 8. Atualizar id inexistente
+# Esperado: 200, sem corpo
+PATCH {{url}}/usuarios/99
+Content-Type: application/json
+
+{
+  "nome": "X"
+}
+
+### 9. Remover
+# Esperado: 204, sem corpo
+DELETE {{url}}/usuarios/2
+
+### 10. Listar depois da remoção
+# Esperado: 200, sem o Josh Dun (id 2)
+GET {{url}}/usuarios
+
+### 11. Criar de novo e comparar o id gerado
+# Esperado: 201, Carlos com id 6 (repete o id do Vitor, porque length + 1 diminui depois do DELETE)
+POST {{url}}/usuarios
+Content-Type: application/json
+
+{
+  "nome": "Carlos",
+  "email": "carlos@uem.br"
+}
+
+### 12. Listar no final
+# Esperado: 200, 6 usuários
+GET {{url}}/usuarios
