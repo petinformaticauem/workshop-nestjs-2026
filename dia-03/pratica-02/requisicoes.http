@@ -1,0 +1,213 @@
+# Use a extensão REST Client do VS Code com o servidor em npm run start:dev.
+# Execute na ordem. O banco persiste os dados mesmo após reiniciar o servidor.
+# Execute "criarUsuario" e confirme o retorno 201 antes das requisições que usam sua resposta.
+# A criação usa vitor@uem.br. Para repetir, conclua a sequência até remover o usuário.
+# Se a criação retornar 409, esse e-mail já existe: remova o cadastro antes de recomeçar.
+# Após remover o usuário, as requisições de busca/atualização dele retornarão 404.
+
+@url = http://localhost:3000
+# Escolha um ID que não exista no banco para os testes de erro.
+@idInexistente = 999999
+# Chave de segurança exigida pelo Guard nas rotas de escrita (POST, PATCH, DELETE).
+@apiKey = chave-secreta
+
+
+
+### 0. Abrir a documentação Swagger
+# Esperado: 200, HTML da interface Swagger. Para interagir, abra {{url}}/docs no navegador.
+GET {{url}}/docs
+
+### 0.1. Consultar o documento OpenAPI
+# Esperado: 200, JSON com título "API de Usuários", rotas e schemas dos DTOs.
+GET {{url}}/docs-json
+
+
+
+### 1. Listar todos
+# Esperado: 200, lista dos usuários atualmente salvos (pode estar vazia), junto ao envelopamento do Interceptor.
+GET {{url}}/usuarios
+
+
+
+### 1.1. Tentar criar usuário sem enviar a chave de acesso
+# Esperado: 403 Forbidden, bloqueado pelo Guard.
+POST {{url}}/usuarios
+Content-Type: application/json
+
+{
+  "nome": "Vitor",
+  "email": "vitor@uem.br"
+}
+
+### 1.2. Tentar criar usuário com chave de acesso incorreta
+# Esperado: 403 Forbidden, bloqueado pelo Guard.
+POST {{url}}/usuarios
+Content-Type: application/json
+x-api-key: chave-incorreta
+
+{
+  "nome": "Vitor",
+  "email": "vitor@uem.br"
+}
+
+### 1.3. Rejeita a criação com dados inválidos (nome vazio e e-mail inválido)
+# Nota: A chave de segurança está correta.
+# Esperado: 400 Bad Request, exibindo as mensagens de erro do class-validator.
+POST {{url}}/usuarios
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "nome": "",
+  "email": "email-em-formato-invalido"
+}
+
+
+
+### 2.1. Criar um usuário para os testes seguintes
+# Nota: A chave está válida e os dados estão corretos.
+# Esperado: 201, Usuário com ID gerado pelo banco e envelopamento do Interceptor.
+POST {{url}}/usuarios
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "nome": "Vitor",
+  "email": "vitor@uem.br"
+}
+
+### 2.2. Criar outro usuário para os testes seguintes
+# Nota: A chave está válida e os dados estão corretos.
+# Esperado: 201, Usuário com ID gerado pelo banco e envelopamento do Interceptor.
+POST {{url}}/usuarios
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "nome": "Carlos",
+  "email": "carlos@uem.br",
+  "idade": 20
+}
+
+
+
+### 2.3. Rejeitar e-mail duplicado
+# Execute após as requisições acima e antes de atualizar o e-mail ou remover o usuário.
+# Esperado: 409, message: "E-mail já cadastrado".
+POST {{url}}/usuarios
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "nome": "Vitor duplicado",
+  "email": "vitor@uem.br"
+}
+
+
+
+### 3. Filtrar por nome
+# Esperado: 200, usuários cujo nome contém Vitor e envelopamento do Interceptor.
+GET {{url}}/usuarios?nome=Vitor
+
+
+
+### 4. Filtrar por nome em minúsculas
+# Esperado: 200, usuários correspondentes e envelopamento do Interceptor.
+# Nota: o SQLite não diferencia maiúsculas de minúsculas ASCII nesse filtro.
+GET {{url}}/usuarios?nome=vitor
+
+
+
+### 5. Buscar o usuário criado
+# Esperado: 200, usuário retornado pela criação e envelopamento do Interceptor.
+GET {{url}}/usuarios/1
+
+
+
+### 5.1. Tentar buscar usuário passando texto no lugar do ID numérico
+# Esperado: 400 Bad Request, message: "Validation failed (numeric string is expected)".
+GET {{url}}/usuarios/id-invalido-texto
+
+
+
+### 6. Buscar ID inexistente
+# Esperado: 404, message: "Usuário não encontrado".
+GET {{url}}/usuarios/{{idInexistente}}
+
+
+
+### 7. Atualizar só o e-mail
+# Nota: Testa @IsOptional no nome e Guard com a chave de acesso
+# Esperado: 200, usuário com e-mail atualizado e envelopamento do Interceptor.
+PATCH {{url}}/usuarios/1
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "email": "vitorball@uem.br"
+}
+
+
+
+### 7.1. Tentar atualizar com e-mail inválido
+# Esperado: 400 Bad Request, bloqueado pelo ValidationPipe mesmo em campos opcionais.
+PATCH {{url}}/usuarios/1
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "email": "email-invalido"
+}
+
+### 7.2. Tentar atualizar sem enviar a chave de acesso
+# Esperado: 403 Forbidden.
+PATCH {{url}}/usuarios/1
+Content-Type: application/json
+
+{
+  "nome": "Tentativa sem chave"
+}
+
+
+
+### 8. Atualizar ID inexistente
+# Esperado: 404, message: "Usuário não encontrado".
+PATCH {{url}}/usuarios/{{idInexistente}}
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "nome": "Usuário inexistente"
+}
+
+
+
+### 8.1. Tentar remover o usuário sem enviar a chave de acesso
+# Esperado: 403 Forbidden.
+DELETE {{url}}/usuarios/1
+
+
+
+### 9. Remover o usuário criado com chave de acesso válida
+# Esperado: 204, sem corpo (ou 200 caso não utilize @HttpCode(204)).
+DELETE {{url}}/usuarios/1
+x-api-key: {{apiKey}}
+
+
+
+### 10. Buscar o usuário removido
+# Esperado: 404, message: "Usuário não encontrado".
+GET {{url}}/usuarios/1
+
+
+
+### 11. Remover ID inexistente
+# Esperado: 404, message: "Usuário não encontrado".
+DELETE {{url}}/usuarios/{{idInexistente}}
+x-api-key: {{apiKey}}
+
+
+
+### 12. Listar no final
+# Esperado: 200, lista sem o usuário removido e demais registros preservados, envelopada pelo Interceptor.
+GET {{url}}/usuarios
